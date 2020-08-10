@@ -25,8 +25,10 @@ import Prelude hiding (fail)
 import Control.Monad.Introspect.Class
 import Data.Type.Role.Representational
 
--- Implementation
+-- * Concrete interface
 
+-- | @'IntrospectT' t r m a@ extends the monad @m@ with access to an environment
+-- @r@ parameterized by @m@ with additional effects @t@ on top.
 newtype IntrospectT
   (t :: (* -> *) -> * -> *)
   (r :: (* -> *) -> *)
@@ -34,6 +36,9 @@ newtype IntrospectT
   (a :: *)
   = IntrospectT { runIntrospectT :: r (t (IntrospectT t r m)) -> m a }
 
+-- | Run an 'IntrospectT'. If introspection is the outermost effect then you
+-- will likely have @t ~ 'Control.Monad.Trans.Identity.IdentityT'@ and thus you
+-- can pick @n ~ 'IntrospectT' t r m@.
 runIntrospect :: (Representational r, Coercible (t (IntrospectT t r m)) n)
   => r n -> IntrospectT t r m a -> m a
 runIntrospect e (IntrospectT h) = h $ liftTransEnv e
@@ -64,7 +69,7 @@ instance (Monad m, MonadTrans t)
   introspectTrans = IntrospectT return
   substituteTrans f (IntrospectT h) = IntrospectT $ h . f
 
--- IntrospectT proxies other effects
+-- * IntrospectT proxies other effects
 
 mapIntrospectT :: (m a -> m b) -> IntrospectT t r m a -> IntrospectT t r m b
 mapIntrospectT f (IntrospectT h) = IntrospectT $ f . h

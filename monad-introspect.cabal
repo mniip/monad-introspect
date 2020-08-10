@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:       Control.Monad.Introspect.Class
                        , Control.Monad.Trans.Introspect
-  build-depends:       base >= 4.9 && <= 4.13,
+  build-depends:       base >= 4.12 && < 4.15,
                        coercion-extras,
                        mmorph,
                        mtl,

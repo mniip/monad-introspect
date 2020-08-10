@@ -31,25 +31,51 @@ import Data.Coerce
 import Prelude hiding (fail)
 import Data.Type.Role.Representational
 
--- Interface
+-- * Abstract interface
 
+-- | A monad with introspection capability is able to query an environment @r@
+-- that is parameterized by the monad itself, i.e. can contain effectful
+-- functions.
+--
+-- The caveat is that sometimes the monad changes (e.g. we locally run a
+-- transformer, or we globally run our transformer steck), so the monad in the
+-- environment can "desync" from the ambient monad. This warrants a more general
+-- class: 'MonadIntrospectTrans', of which 'MonadIntrospect' is a special case.
+--
+-- The machinery sometimes requires newtype wrapping/unwrapping the monad that
+-- goes to the environment. We use/require 'Coercible' for that, as the
+-- "functorial" operations are deemed expensive. The constraint
+-- @'Representational' r@ ensures that the environment can be coerced provided
+-- the monad can be coerced.
+--
+-- Otherwise the interface is identical to that of
+-- 'Control.Monad.Reader.Class.MonadReader'.
+class (Representational r, MonadIntrospectTrans IdentityT r m)
+  => MonadIntrospect (r :: (* -> *) -> *) (m :: * -> *) where
+  -- | Essentially 'Control.Monad.Reader.Class.ask'.
+  introspect :: m (r m)
+  -- | Essentially 'Control.Monad.Reader.Class.local'.
+  substitute :: (r m -> r m) -> m a -> m a
+
+-- | If the ambient monad is @m@ and the environment @r@ has additional effects
+-- @t@, we can ask for that environment, or substitute it. Multiple (or zero)
+-- effects can be combined into a single @t@ with 'ComposeT' (or 'IdentityT').
 class (Monad m, MonadTrans t) => MonadIntrospectTrans
   (t :: (* -> *) -> * -> *)
   (r :: (* -> *) -> *)
   (m :: * -> *)
   | m -> t where
+  -- | Essentially 'Control.Monad.Reader.Class.ask'.
   introspectTrans :: m (r (t m))
+  -- | Essentially 'Control.Monad.Reader.Class.local'.
   substituteTrans :: (r (t m) -> r (t m)) -> m a -> m a
-
-class (Representational r, MonadIntrospectTrans IdentityT r m)
-  => MonadIntrospect (r :: (* -> *) -> *) (m :: * -> *) where
-  introspect :: m (r m)
-  substitute :: (r m -> r m) -> m a -> m a
 
 instance (Representational r, MonadIntrospectTrans IdentityT r m)
   => MonadIntrospect r m where
   introspect = liftTransEnv <$> introspectTrans
   substitute = substituteTrans . liftTransMapper
+
+-- * Utility functions for coercing environments
 
 liftTransEnv :: (Representational r, Coercible m n) => r m -> r n
 liftTransEnv = coerce
