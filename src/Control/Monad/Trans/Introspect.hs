@@ -69,7 +69,7 @@ instance (Monad m, MonadTrans t)
   introspectTrans = IntrospectT return
   substituteTrans f (IntrospectT h) = IntrospectT $ h . f
 
--- * IntrospectT proxies other effects
+-- * Utility functions for proxying other effects
 
 mapIntrospectT :: (m a -> m b) -> IntrospectT t r m a -> IntrospectT t r m b
 mapIntrospectT f (IntrospectT h) = IntrospectT $ f . h
@@ -81,6 +81,8 @@ liftCallCC cCC f = IntrospectT $ \r ->
 liftCatch :: Catch e m a -> Catch e (IntrospectT t r m) a
 liftCatch f m h = IntrospectT $ \r ->
   f (runIntrospectT m r) $ \e -> runIntrospectT (h e) r
+
+-- IntrospectT proxies other effects
 
 instance MonadError e m => MonadError e (IntrospectT t r m) where
   throwError = lift . throwError
